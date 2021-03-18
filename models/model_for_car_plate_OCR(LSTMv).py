@@ -249,18 +249,18 @@ def extract_features_for_prediction(filename):
 
 
 #모델 학습을 위한 함수
-def model_training():
+def model_training(img_dir_train, file_name_for_features_train, file_name_for_descriptions_train, file_name_for_tokenizer, file_name_for_features_test, file_name_for_descriptions_test, model_to_save_path ):
     #이미지 파일 경로를 지정
-    directory = './img/train/img'
+    directory = img_dir_train
     features = extract_features(directory)
     print('Extracted Features: %d' % len(features))
     #뽑아낸 특징 저장
-    dump(features, open('features.pkl', 'wb'))
+    dump(features, open(file_name_for_features_train, 'wb')) #.pkl 파일 필요
 
     #각 이미지 파일마다 적혀있는 번호판의 번호를 추출
     descriptions = process_eng_to_hangle(directory)
     #저장하기-텍스트 형식
-    save_descriptions(descriptions, 'descriptions.txt')
+    save_descriptions(descriptions, file_name_for_descriptions_train) #.txt 형식이 필요
 
     #토큰화 준비
     tokenizer = create_tokenizer(descriptions)
@@ -268,15 +268,15 @@ def model_training():
     print('Vocabulary Size: %d' % vocab_size)
 
     #토크나이저 저장
-    dump(tokenizer, open('tokenizer.pkl', 'wb'))
+    dump(tokenizer, open(file_name_for_tokenizer, 'wb')) #.pkl 파일 필요
 
     #저장파일 불러서 훈련용 데이터 처리하기
-    filename = './descriptions.txt'
+    filename = file_name_for_descriptions_train
     train = load_set(filename)
     print('Dataset: %d' % len(train))
-    train_descriptions = load_clean_descriptions('descriptions.txt', train)
+    train_descriptions = load_clean_descriptions(file_name_for_descriptions_train, train)
     print('Descriptions: train=%d' % len(train_descriptions))
-    train_features = load_photo_features('features.pkl', train)
+    train_features = load_photo_features(file_name_for_features_train, train)
     print('Photos: train=%d' % len(train_features))
     tokenizer = create_tokenizer(train_descriptions)
     vocab_size = len(tokenizer.word_index) + 1
@@ -287,18 +287,18 @@ def model_training():
     
 
     #저장파일 불러서 테스트용 데이터 처리하기
-    filename = 'descriptions.txt' #적절한 파일명으로 교체 필요
+    filename = file_name_for_descriptions_test 
     test = load_set(filename)
     print('Dataset: %d' % len(test))
-    test_descriptions = load_clean_descriptions('descriptions.txt', test)
+    test_descriptions = load_clean_descriptions(file_name_for_descriptions_test, test)
     print('Descriptions: test=%d' % len(test_descriptions))
-    test_features = load_photo_features('features.pkl', test)
+    test_features = load_photo_features(file_name_for_features_test, test)
     print('Photos: test=%d' % len(test_features))
     X1test, X2test, ytest = create_sequences(tokenizer, max_length, test_descriptions, test_features, vocab_size)
 
     #모델 생성하고, 저장장소 설정
     model = define_model(vocab_size, max_length)
-    filepath = 'model/model-ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'
+    filepath = model_to_save_path
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 
     #모델 학습
