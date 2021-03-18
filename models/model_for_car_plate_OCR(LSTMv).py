@@ -5,12 +5,12 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.utils import to_categorical, plot_model
 from tensorflow.keras.layers import Input, Dense, LSTM, Embedding, Dropout, Add
-from tensorflow.keras.models import Model
+from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.applications import NASNetLarge
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tqdm import tqdm
 from glob import glob
-from numpy import array
+from numpy import array, argmax
 
 import tensorflow as tf
 import pathlib
@@ -196,7 +196,60 @@ def define_model(vocab_size, max_length):
     return model
 
 
-if __name__ == "__main__":
+#다시 단어로 돌리기
+def word_for_id(integer, tokenizer):
+    for word, index in tokenizer.word_index.items():
+        if index == integer:
+            return word
+    return None
+
+
+#이미지로부터 번호판 읽기
+def generate_desc(model, tokenizer, photo, max_length):
+    in_text = 'startseq'
+    for i in range(max_length):
+        sequence = tokenizer.texts_to_sequences([in_text])[0]
+        sequence = pad_sequences([sequence], maxlen=max_length)
+        yhat = model.predict([photo,sequence], verbose=0)
+        yhat = argmax(yhat)
+        word = word_for_id(yhat, tokenizer)
+        if word is None:
+            break
+
+        in_text += ' ' + word
+
+        if word == 'endseq':
+            break
+    return in_text
+
+
+#전체중 몇개를 맞췄는지 확인하는 방식으로 평가
+def evaluate_model(model, descriptions, photos, tokenizer, max_length):
+    total = 0
+    correct = 0
+    for key, desc_list in tqdm(descriptions.items()):
+        yhat = generate_desc(model, tokenizer, photos[key], max_length)
+        references = [d.split() for d in desc_list][0]
+        total += 1
+        if references == yhat.split():
+            correct += 1
+    print('정답률: %f' %(correct/total))
+
+
+def extract_features_for_prediction(filename):
+    model = NASNetLarge()
+    model = Model(inputs=model.inputs, outputs=model.layers[-2].output)
+    image = load_img(filename, target_size=(331, 331))
+    image = img_to_array(image)
+    image = image.reshape((1, image.shape[0], image.shape[1], image.shape[2]))
+    feature = model.predict(image, verbose=0)
+    return feature
+
+
+
+
+#모델 학습을 위한 함수
+def model_training():
     #이미지 파일 경로를 지정
     directory = './img/train/img'
     features = extract_features(directory)
@@ -213,6 +266,9 @@ if __name__ == "__main__":
     tokenizer = create_tokenizer(descriptions)
     vocab_size = len(tokenizer.word_index) + 1
     print('Vocabulary Size: %d' % vocab_size)
+
+    #토크나이저 저장
+    dump(tokenizer, open('tokenizer.pkl', 'wb'))
 
     #저장파일 불러서 훈련용 데이터 처리하기
     filename = './descriptions.txt'
@@ -249,3 +305,40 @@ if __name__ == "__main__":
     history = model.fit([X1train, X2train], ytrain, epochs=300, verbose=1, callbacks=[checkpoint], validation_data=([X1test, X2test], ytest))
 
     
+#모델 평가를 위한 함수
+def model_evaluate():
+    #훈련시 사용하던 파일들을 사용하기
+    filename = './descriptions.txt'
+    train = load_set(filename)
+    print('Dataset: %d' % len(train))
+    train_descriptions = load_clean_descriptions('descriptions.txt', train)
+    print('Descriptions: train=%d' % len(train_descriptions))
+    tokenizer = create_tokenizer(train_descriptions)
+    vocab_size = len(tokenizer.word_index) + 1
+    print('Vocabulary Size: %d' % vocab_size)
+    max_length = max_length_of_words(train_descriptions)
+    print('Description Length: %d' % max_length)
+    
+
+    #평가를 위한 파일 따로 불러오기(있을 경우)
+    filename = './descriptions.txt'
+    test = load_set(filename)
+    print('Dataset: %d' % len(test))
+    test_descriptions = load_clean_descriptions('descriptions.txt', test)
+    print('Descriptions: test=%d' % len(test_descriptions))
+    test_features = load_photo_features('features.pkl', test)
+    print('Photos: test=%d' % len(test_features))
+    #적절한 모델 로드하기
+    filename = 'model/model-ep217-loss0.887-val_loss0.596.h5'
+    model = load_model(filename)
+    evaluate_model(model, test_descriptions, test_features, tokenizer, max_length)
+
+
+#모델 예측
+def model_prediction():
+    tokenizer = load(open('tokenizer.pkl', 'rb'))
+    max_length = 10
+    model = load_model('model-ep002-loss3.245-val_loss3.612.h5')
+    photo = extract_features_for_prediction('example.jpg')
+    description = generate_desc(model, tokenizer, photo, max_length)
+    print(description)
