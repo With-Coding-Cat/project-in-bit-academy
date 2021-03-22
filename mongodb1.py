@@ -2,7 +2,8 @@ import pymongo
 from pymongo import MongoClient
 
 def Createmongodb(): 
-    client = MongoClient()
+    client = pymongo.MongoClient("mongodb+srv://ted001:ted0014758@cluster0.stzaz.mongodb.net/Car_plate_DB?retryWrites=true&w=majority")
+    db = client.Car_plate_DB
     
     if (client.Car_plate_DB == None):              # 동일한 이름의 데이터베이스가 없을 때, 데이터베이스 생성 
         db = client.Car_plate_DB
@@ -23,7 +24,7 @@ def Createmongodb():
         collection = db['{}'.format("Find_collection")]
 
 def MongoDB(video1, video2, image, time, plate1):
-    client = MongoClient()
+    client = pymongo.MongoClient("mongodb+srv://ted001:ted0014758@cluster0.stzaz.mongodb.net/Car_plate_DB?retryWrites=true&w=majority")
     db = client["{}".format("Car_plate_DB")]               # 데이터베이스 불러오기
     collection = db["{}".format("All_collection")]         # collection 불러오기
     
@@ -35,7 +36,7 @@ def MongoDB(video1, video2, image, time, plate1):
                   "car license plate":"{}".format(plate1)})
 
 def TrackingDB(plate_input):
-    client = MongoClient()
+    client = pymongo.MongoClient("mongodb+srv://ted001:ted0014758@cluster0.stzaz.mongodb.net/Car_plate_DB?retryWrites=true&w=majority")
     db = client["{}".format("Car_plate_DB")]                # 데이터베이스 불러오기
     collection = db["{}".format("Find_collection")]         # collection 불러오기
 
