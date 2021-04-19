@@ -2,4 +2,7 @@ Most parts are from bellow.
 Github:https://github.com/Usmankhujaev/KoreanCarPlateGenerator
 
 Here, I put the files with minor changes. (bug fix)
-And also I put ipython files to make augmentation that i wote.
+And also I put ipython files to make augmentations that I wote.
+
+NOTICE:
+Before using this program, you need to make folders like './image/train/type1' to './image/train/type6'.
